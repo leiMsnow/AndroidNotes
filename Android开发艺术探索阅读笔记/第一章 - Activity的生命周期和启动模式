@@ -1,4 +1,4 @@
-1.1生命周期全面分析
+1.1 生命周期全面分析
 1.1.1 Activity的生命周期分析：
     正常情况下 onCreate --> onStart --> onResume --> onPause --> onStop --> onDestroy
     onCreate:第一次创建会执行，我们可以在这里做一些View的初始化、基本变量数据等。
@@ -8,27 +8,64 @@
     onStop:表示activity正在停止，在此可以操作重量级的回收工作。
     onDestroy:表示activity即将被销毁，这是最后一个生命周期，我们在这里做回收和最终的资源释放。
 
-    这里有几点问题：
+    知识点:
         1.onStart和onResume的区别:它们都表示activity可见，但是onStart的时候activity还在后台(理解为不可以操作)，onResume是可以操作的。
         2.onPause和onStop的情况:正常情况下，onPause结束后，onStop紧接着会被调用，但是在特殊情况下onPause执行后，onStop不会执行，
             返回的时候，会直接执行onResume,比如打开了个弹窗、被打开的activity是透明背景。
         3.两个activity启动的顺序：A启动的时候：onCreate --> onStart --> onResume ，
                                 A启动B：A-onPause --> B-onCreate --> B-onStart --> B-onResume --> A-onStop; 
                                 B返回A：B-onPause --> A-onRestart --> A-onStart --> A-onResume --> B-onStop --> B-onDestroy
-
-1.1.2异常情况的生命周期分析：
+----------------------------------------------------------------------------------------------------------------------------------------------
+1.1.2 异常情况的生命周期分析：
     因为系统内存不足或者资源相关配置的因素activity被关闭，是不会按照上面的情况来执行的。
     1.情况1:横竖屏切换导致activity重新创建，那么当前activity就会执行 onPause --> onSaveInstanceState --> onDestroy,当activity被重新加载时
     会调用onRestoreIstanceState。如果你在onSaveInstanceState保存了数据，可以在onRestoreIstanceState中读取恢复数据，在onCreate中也可以恢复数据，
     它们不同之处就是onRestoreIstanceState只有在系统异常终止之后，再次启动才会执行。所以在onCreate中恢复数据要注意判断bundle是否为空的情况。
     2.情况2:内存不足时，也会执行以上操作，但是如果activity没有被重启，onSaveInstanceState就不会被执行。
 
-    针对情况1，我们可以通过configChanges属性来配置来避免。configChanges有非常多的属性可选，有兴趣可以自行查询。目前我们只列出几个常用的：
-        keyboardHidden:键盘的课方文秀发生了改变，比如用户调用键盘。
-        orientation:当屏幕方向发生了变化。
-        screenSize:屏幕尺寸发生了变化，当选择设备，屏幕的尺寸就会发生变化。这个属性比较特殊，它在低于13的版本上不会导致activity重启。
-    如果配置了如上的情况，activiy在旋转设备的时候，将不会执行onSaveInstanceState操作，而是会执行onConfigurationChanged方法。
+    知识点:
+        1.针对情况1，我们可以通过configChanges属性来配置来避免。configChanges有非常多的属性可选，有兴趣可以自行查询。目前我们只列出几个常用的：
+            keyboardHidden:键盘的课方文秀发生了改变，比如用户调用键盘。
+            orientation:当屏幕方向发生了变化。
+            screenSize:屏幕尺寸发生了变化，当选择设备，屏幕的尺寸就会发生变化。这个属性比较特殊，它在低于13的版本上不会导致activity重启。
+        2.如果配置了如上的情况，activiy在旋转设备的时候，将不会执行onSaveInstanceState操作，而是会执行onConfigurationChanged方法。
 
-    以上总结就是:如果想处理屏幕旋转的操作，那就在onSaveInstanceState保存数据，在onRestoreIstanceState恢复数据；如果不想处理旋转操作，就设置configChanges属性.
+    以上总结就是:如果想处理屏幕旋转的操作，那就在onSaveInstanceState保存数据，在onRestoreIstanceState恢复数据；如果不想处理旋转操作，就设置configChanges属性。
+----------------------------------------------------------------------------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------------------------------------------------------
+1.2 Activity的启动模式
+1.2.1 Activity的LaunchMode:
+    Standard:标准模式，系统的默认模式，每次启动activity都会创建一个新的实例。
+    SingleTop:栈顶复用模式，如果启动的activity在栈顶，那么它将不会被创建，而是执行onNewIntent方法，否则会重新创建。
+    SingleTask:栈内复用模式，这种模式下，如果该activity在一个栈中存在，他不会创建新实例，而是执行onNewIntent方法。否则重新创建。更具体的:
+               1.如果在T1栈中有ABC三个实例，新启动的D需要在T2启动，这时候发现T2不存在，将会优先创建T2，然后将D创建。
+               2.如果在T1栈存在，新启动的D需要在T1启动，这时候直接将D创建。
+               3.如果在T1栈中有DABC三个实例，这时候调用D，根据栈内复用原装，D将会被切换到栈顶并且调用onNewIntent方法，因为SingleTask有clearTop的效果，
+                    所以ABC三个实例将会被弹出栈，这时候栈T1就只剩下D。
+    SingleInstance:但实例模式，除了具有SingleTask的全部特性，还加强了一点，就是该模式下的activity只能单独的在一个栈内。
 
-1.2Activity的启动模式
+    知识点:
+        1.针对刚才所说的任务栈，默认的任务栈为当前应用包名，如果想让activity新启动一个任务栈，可以设置TaskAffinity。TaskAffinity属性主要和SingleTask或者
+        allowTaskReparenting属性单品使用，在其它情况下没有意义。
+        2.给activity指定模式通过launchMode来实现。或者在代码中使用intent.addFlags(Intent.FLAG_ACTIVITY_XXXX_XXX);
+----------------------------------------------------------------------------------------------------------------------------------------------
+1.2.2 Activity的Flags
+    Flags有很多，这里只标记几个重要的来说:
+        FLAG_ACTIVITY_NEW_TASK - 指定SingleTask启动模式
+        FLAG_ACTIVITY_SINGLE_TOP - 指定SingleTop启动模式
+        FLAG_ACTIVITY_CLEAR_TOP - 标记此属性时，在同一个任务栈中所有位于它之上的activity将会被弹出栈，这个标记一般和SingleTask一起使用。
+        FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS - 标记此属性的activity将不会出现在历史activiy列表中，还可以通过属性:excludeFromRecents=true指定。
+----------------------------------------------------------------------------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------------------------------------------------------
+1.3 IntentFilter的匹配规则
+    activity的启动方式分为显示启动和隐式启动，显示启动是我们最常用的方式：startActivity();隐式启动通过在Manifest.xml中配置IntentFiler，然后调用相关的
+    action/category/data属性来匹配。
+
+    知识点:
+        action的匹配方式是必须指定action的值完全相同。
+        为了让我们的activity正常的隐式调用，category至少有一个"android.intent.category.DEFAULT"。
+        data的匹配规则比较复杂，Scheme:URI的模式，比如http、file、content等，也可以自己指定。如果不指定，这个匹配就会无效。
+                            Host:URI的主机名比如:google.com,如果不指定，匹配无效。
+                            Port:URI的端口号，比如80，只有指定了Scheme和Host这个参数才是有效的。
+                            完整的data匹配:Scheme://Host/80/
+        防止隐式启动找不到出错的情况，我们可以使用PackManager或者Intent的resolveActivity方法，如果找不到将会返回null，我们通过判断处理即可。

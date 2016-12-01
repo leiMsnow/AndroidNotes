@@ -1,3 +1,4 @@
+1.1生命周期全面分析
 1.1.1 Activity的生命周期分析：
     正常情况下 onCreate --> onStart --> onResume --> onPause --> onStop --> onDestroy
     onCreate:第一次创建会执行，我们可以在这里做一些View的初始化、基本变量数据等。
@@ -7,7 +8,27 @@
     onStop:表示activity正在停止，在此可以操作重量级的回收工作。
     onDestroy:表示activity即将被销毁，这是最后一个生命周期，我们在这里做回收和最终的资源释放。
 
-    这里有两点问题：
+    这里有几点问题：
         1.onStart和onResume的区别:它们都表示activity可见，但是onStart的时候activity还在后台(理解为不可以操作)，onResume是可以操作的。
         2.onPause和onStop的情况:正常情况下，onPause结束后，onStop紧接着会被调用，但是在特殊情况下onPause执行后，onStop不会执行，
-        返回的时候，会直接执行onResume,比如打开了个弹窗、被打开的activity是透明背景。
+            返回的时候，会直接执行onResume,比如打开了个弹窗、被打开的activity是透明背景。
+        3.两个activity启动的顺序：A启动的时候：onCreate --> onStart --> onResume ，
+                                A启动B：A-onPause --> B-onCreate --> B-onStart --> B-onResume --> A-onStop; 
+                                B返回A：B-onPause --> A-onRestart --> A-onStart --> A-onResume --> B-onStop --> B-onDestroy
+
+1.1.2异常情况的生命周期分析：
+    因为系统内存不足或者资源相关配置的因素activity被关闭，是不会按照上面的情况来执行的。
+    1.情况1:横竖屏切换导致activity重新创建，那么当前activity就会执行 onPause --> onSaveInstanceState --> onDestroy,当activity被重新加载时
+    会调用onRestoreIstanceState。如果你在onSaveInstanceState保存了数据，可以在onRestoreIstanceState中读取恢复数据，在onCreate中也可以恢复数据，
+    它们不同之处就是onRestoreIstanceState只有在系统异常终止之后，再次启动才会执行。所以在onCreate中恢复数据要注意判断bundle是否为空的情况。
+    2.情况2:内存不足时，也会执行以上操作，但是如果activity没有被重启，onSaveInstanceState就不会被执行。
+
+    针对情况1，我们可以通过configChanges属性来配置来避免。configChanges有非常多的属性可选，有兴趣可以自行查询。目前我们只列出几个常用的：
+        keyboardHidden:键盘的课方文秀发生了改变，比如用户调用键盘。
+        orientation:当屏幕方向发生了变化。
+        screenSize:屏幕尺寸发生了变化，当选择设备，屏幕的尺寸就会发生变化。这个属性比较特殊，它在低于13的版本上不会导致activity重启。
+    如果配置了如上的情况，activiy在旋转设备的时候，将不会执行onSaveInstanceState操作，而是会执行onConfigurationChanged方法。
+
+    以上总结就是:如果想处理屏幕旋转的操作，那就在onSaveInstanceState保存数据，在onRestoreIstanceState恢复数据；如果不想处理旋转操作，就设置configChanges属性.
+
+1.2Activity的启动模式

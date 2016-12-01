@@ -1,1 +1,13 @@
-test
+1.1.1 Activity的生命周期分析：
+    正常情况下 onCreate --> onStart --> onResume --> onPause --> onStop --> onDestroy
+    onCreate:第一次创建会执行，我们可以在这里做一些View的初始化、基本变量数据等。
+    onStart:正在被启动，这时候activity已经可见了，但是还无法与用户交互。
+    onResume:表示activity已经完全可以操作了，我们一般在此做一些处理。
+    onPause:表示activity已经被暂停，在此可以做一些动画停止、结束一些系统服务操作(关闭相机等)、保存数据等操作，（在此不可操作耗时的任务）。
+    onStop:表示activity正在停止，在此可以操作重量级的回收工作。
+    onDestroy:表示activity即将被销毁，这是最后一个生命周期，我们在这里做回收和最终的资源释放。
+
+    这里有两点问题：
+        1.onStart和onResume的区别:它们都表示activity可见，但是onStart的时候activity还在后台(理解为不可以操作)，onResume是可以操作的。
+        2.onPause和onStop的情况:正常情况下，onPause结束后，onStop紧接着会被调用，但是在特殊情况下onPause执行后，onStop不会执行，
+        返回的时候，会直接执行onResume,比如打开了个弹窗、被打开的activity是透明背景。
